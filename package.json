@@ -1,0 +1,14 @@
+{
+  "name": "Crisper",
+  "description": "一款聰明、好用的脆",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "bun run --filter frontend dev",
+    "dev:backend": "bun run --filter backend start",
+    "dev": "bun run --filter '*' dev"
+  }
+}

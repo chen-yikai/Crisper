@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1767631305700,
+      "tag": "0000_glorious_micromacro",
+      "breakpoints": true
+    }
+  ]
+}

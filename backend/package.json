@@ -1,0 +1,32 @@
+{
+  "name": "crisper-backend",
+  "version": "1.0",
+  "author": "EliasChen",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@elysiajs/jwt": "^1.4.0",
+    "@elysiajs/static": "^1.4.7",
+    "@elysiajs/swagger": "^1.3.1",
+    "@libsql/client": "^0.15.15",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "better-sqlite3": "^12.5.0",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1",
+    "elysia": "latest",
+    "elysia-mcp": "^0.1.0",
+    "nanoid": "^5.1.6",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.21.0"
+  },
+  "module": "src/index.js"
+}
