@@ -4,6 +4,7 @@ import { routes } from "@/api";
 import { mcpPlugin } from "@/mcp";
 
 const app = new Elysia()
+  .get("/s3/avatars/default.png", () => Bun.file("./assets/defaultAvatar.png"))
   .use(staticPlugin({ assets: "data", prefix: "/s3" }))
   .onError(({ code, set, error }) => {
     switch (code) {

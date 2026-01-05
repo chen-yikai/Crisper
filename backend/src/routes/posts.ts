@@ -380,8 +380,7 @@ export const postsRoute = routeHandler("posts")
       },
       detail: {
         summary: "檢查是否按讚",
-        description:
-          "檢查當前使用者是否對指定貼文按讚。需要在 Authorization 標頭中提供 Token。",
+        description: "檢查當前使用者是否對指定貼文按讚。需要 token 認證。",
       },
     },
   );
