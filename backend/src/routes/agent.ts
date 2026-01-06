@@ -1,49 +1,83 @@
 import { t } from "elysia";
 import { routeHandler } from "@/lib/routeHandler";
 import { Ollama } from "ollama";
-import type { Message } from "ollama";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { Message, Tool } from "ollama";
 
 // Create Ollama client
 const ollama = new Ollama({ host: "http://localhost:11434" });
 
-// MCP client setup
-let mcpClient: Client | null = null;
-
-async function initializeMCPClient() {
-  if (mcpClient) {
-    return mcpClient;
-  }
-
-  const transport = new StdioClientTransport({
-    command: "node",
-    args: ["--loader", "tsx", "./src/index.ts"],
-  });
-
-  mcpClient = new Client(
-    {
-      name: "crisper-agent",
-      version: "1.0.0",
+// MCP Tools Configuration - this acts as the bridge
+// These tools are available in the MCP server and we expose them to Ollama
+const mcpTools: Tool[] = [
+  {
+    type: "function",
+    function: {
+      name: "get_all_posts",
+      description: "取得crisper平台上所有的貼文",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
     },
-    {
-      capabilities: {},
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_all_users",
+      description: "取得crisper平台上所有的使用者（不包含密碼）",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
     },
-  );
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_all_topics",
+      description: "取得crisper平台上所有的主題",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+];
 
-  await mcpClient.connect(transport);
-  return mcpClient;
-}
-
-// Function to call MCP tools
+// Function to call MCP server tools via HTTP
 async function callMCPTool(toolName: string, args: any = {}) {
   try {
-    const client = await initializeMCPClient();
-    const result = await client.callTool({
-      name: toolName,
-      arguments: args,
+    // Call the MCP server directly via HTTP
+    const response = await fetch("http://localhost:3001/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: args,
+        },
+      }),
     });
-    return result;
+
+    if (!response.ok) {
+      throw new Error(`MCP server responded with status ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.error) {
+      throw new Error(result.error.message || "MCP tool call failed");
+    }
+
+    return result.result;
   } catch (error) {
     console.error("Error calling MCP tool:", error);
     return {
@@ -58,94 +92,83 @@ async function callMCPTool(toolName: string, args: any = {}) {
   }
 }
 
-// Function to handle agent chat with MCP integration
+// Function to handle agent chat with MCP tool integration (ollama-mcp-bridge pattern)
 async function handleAgentChat(
   userMessage: string,
   model: string = "llama3.2",
 ) {
   const messages: Message[] = [
     {
-      role: "system",
-      content: `You are a helpful assistant for the Crisper platform. You have access to the following tools:
-- get_all_posts: 取得crisper平台上所有的貼文
-- get_all_users: 取得crisper平台上所有的使用者（不包含密碼）
-- get_all_topics: 取得crisper平台上所有的主題
-
-When you need information from the database, indicate which tool you want to use by responding with a JSON object in this format:
-{"tool": "tool_name", "reason": "why you need this tool"}
-
-After receiving tool results, provide a helpful response to the user based on that data.`,
-    },
-    {
       role: "user",
       content: userMessage,
     },
   ];
 
-  // First call to get LLM's response
-  let response = await ollama.chat({
-    model,
-    messages,
-    stream: false,
-  });
-
   let iterations = 0;
   const maxIterations = 5;
 
-  // Tool calling loop
+  // Tool calling loop - this is the bridge between Ollama and MCP
   while (iterations < maxIterations) {
-    const content = response.message.content;
-
-    // Check if the response contains a tool call request
-    let toolRequest;
-    try {
-      // Try to find JSON in the response
-      const jsonMatch = content.match(/\{[^}]*"tool"[^}]*\}/);
-      if (jsonMatch) {
-        toolRequest = JSON.parse(jsonMatch[0]);
-      }
-    } catch (e) {
-      // Not a tool call, just a regular response
-      break;
-    }
-
-    if (!toolRequest || !toolRequest.tool) {
-      break;
-    }
-
-    // Call the MCP tool
-    const toolResult = await callMCPTool(toolRequest.tool);
-
-    // Extract text content from tool result
-    const toolResultText =
-      toolResult.content
-        ?.map((c: any) => (c.type === "text" ? c.text : ""))
-        .join("\n") || "No result";
-
-    // Add tool result to conversation
-    messages.push({
-      role: "assistant",
-      content: content,
-    });
-
-    messages.push({
-      role: "user",
-      content: `Tool result for ${toolRequest.tool}:\n${toolResultText}\n\nNow please provide a helpful response to the original question based on this data.`,
-    });
-
-    // Get LLM's response with tool results
-    response = await ollama.chat({
+    // Call Ollama with available tools
+    const response = await ollama.chat({
       model,
       messages,
+      tools: mcpTools,
       stream: false,
     });
 
+    messages.push(response.message);
+
+    // Check if there are tool calls
+    if (!response.message.tool_calls || response.message.tool_calls.length === 0) {
+      // No more tool calls, return the final response
+      return {
+        response: response.message.content,
+        iterations,
+        toolCalls: [],
+      };
+    }
+
+    // Process each tool call
+    const toolCallResults = [];
+    for (const toolCall of response.message.tool_calls) {
+      const toolName = toolCall.function.name;
+      const toolArgs = toolCall.function.arguments || {};
+
+      console.log(`Calling MCP tool: ${toolName} with args:`, toolArgs);
+
+      // Call the MCP tool
+      const toolResult = await callMCPTool(toolName, toolArgs);
+
+      // Extract text content from tool result
+      const toolResultText =
+        toolResult.content
+          ?.map((c: any) => (c.type === "text" ? c.text : ""))
+          .join("\n") || "No result";
+
+      // Add tool result to messages
+      messages.push({
+        role: "tool",
+        content: toolResultText,
+      });
+
+      toolCallResults.push({
+        tool: toolName,
+        result: toolResultText,
+      });
+    }
+
     iterations++;
+
+    // Continue the loop to let Ollama process the tool results
   }
 
+  // If we hit max iterations, return the last message
+  const lastMessage = messages[messages.length - 1];
   return {
-    response: response.message.content,
+    response: lastMessage.content || "Max iterations reached",
     iterations,
+    toolCalls: [],
   };
 }
 
@@ -192,7 +215,7 @@ export const agentRoute = routeHandler("agent")
       detail: {
         summary: "與 AI Agent 對話",
         description:
-          "發送訊息給 AI Agent，Agent 會使用 Ollama API 並可以存取 MCP 工具來查詢資料庫資訊。",
+          "發送訊息給 AI Agent，Agent 會使用 Ollama API 並透過 MCP bridge 存取資料庫工具。支援 Ollama 原生的 function calling。",
       },
     },
   )
@@ -237,6 +260,37 @@ export const agentRoute = routeHandler("agent")
       detail: {
         summary: "取得可用的 Ollama 模型列表",
         description: "列出本地 Ollama 伺服器上所有可用的模型。",
+      },
+    },
+  )
+  .get(
+    "/tools",
+    async () => {
+      return {
+        message: "Success",
+        tools: mcpTools.map((tool) => ({
+          name: tool.function.name,
+          description: tool.function.description,
+          parameters: tool.function.parameters,
+        })),
+      };
+    },
+    {
+      response: {
+        200: t.Object({
+          message: t.String(),
+          tools: t.Array(
+            t.Object({
+              name: t.String(),
+              description: t.String(),
+              parameters: t.Any(),
+            }),
+          ),
+        }),
+      },
+      detail: {
+        summary: "取得可用的 MCP 工具列表",
+        description: "列出所有可透過 agent 使用的 MCP 工具。",
       },
     },
   );
