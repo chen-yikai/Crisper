@@ -10,12 +10,12 @@ services:
     environment:
       - NODE_ENV=production
       - SQLITE_PATH=/app/data/sqlite.db
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable is required}
     volumes:
       - ./data:/app/data  # Persist database and uploaded files
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/docs"]
+      test: ["CMD", "bun", "run", "-e", "fetch('http://localhost:3000/api/docs').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -26,4 +26,5 @@ ENV SQLITE_PATH=/app/data/sqlite.db
 EXPOSE 3000 3001
 
 # Run database migrations and start the application
-CMD ["sh", "-c", "bun run db:push && bun run src/index.ts"]
+# Note: db:push is idempotent and safe to run on startup
+CMD ["sh", "-c", "(bun run db:push || echo 'Warning: Database migration failed') && bun run src/index.ts"]

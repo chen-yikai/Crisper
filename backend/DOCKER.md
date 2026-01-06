@@ -16,9 +16,12 @@ This guide explains how to deploy the Crisper backend using Docker.
 cd backend
 ```
 
-2. Create a `.env` file (optional):
+2. Set the required JWT_SECRET environment variable:
 ```bash
-# Copy and modify as needed
+# Option 1: Set it in your shell
+export JWT_SECRET=your-secure-secret-key
+
+# Option 2: Create a .env file
 echo "JWT_SECRET=your-secure-secret-key" > .env
 ```
 
@@ -58,7 +61,7 @@ docker run -d \
 ## Environment Variables
 
 - `SQLITE_PATH`: Path to SQLite database file (default: `/app/data/sqlite.db`)
-- `JWT_SECRET`: Secret key for JWT token generation (default: `ruru`)
+- `JWT_SECRET`: **Required** - Secret key for JWT token generation. Must be set for production use.
 - `NODE_ENV`: Node environment (default: `production`)
 
 ## Data Persistence
@@ -123,7 +126,9 @@ For production deployment, consider:
 
 ## Health Check
 
-The container includes a health check that verifies the API is responding properly. You can check the health status with:
+The container includes a health check that verifies the API is responding properly using Bun's built-in fetch. You can check the health status with:
 ```bash
 docker inspect --format='{{.State.Health.Status}}' crisper-backend
 ```
+
+The health check tests the `/api/docs` endpoint every 30 seconds and will mark the container as unhealthy if it fails 3 consecutive checks.

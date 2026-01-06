@@ -39,7 +39,6 @@ Thumbs.db
 
 # Docker
 Dockerfile
-.dockerignore
 docker-compose.yml
 
 # Database (will be mounted as volume)
