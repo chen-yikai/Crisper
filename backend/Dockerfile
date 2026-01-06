@@ -15,6 +15,7 @@ COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV SQLITE_PATH=/app/sqlite.db
 
 # Expose ports
 # Port 3000 for main API
