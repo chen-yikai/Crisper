@@ -269,9 +269,9 @@ export const agentRoute = routeHandler("agent")
       return {
         message: "Success",
         tools: mcpTools.map((tool) => ({
-          name: tool.function.name,
-          description: tool.function.description,
-          parameters: tool.function.parameters,
+          name: tool.function.name || "unknown",
+          description: tool.function.description || "",
+          parameters: tool.function.parameters as any,
         })),
       };
     },
