@@ -4,7 +4,9 @@ import { Ollama } from "ollama";
 import type { Message, Tool } from "ollama";
 
 // Create Ollama client
-const ollama = new Ollama({ host: "http://localhost:11434" });
+// Uses OLLAMA_HOST environment variable or defaults to the provided Ollama API
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.crisper.skills.eliaschen.dev";
+const ollama = new Ollama({ host: OLLAMA_HOST });
 
 // MCP Tools Configuration - this acts as the bridge
 // These tools are available in the MCP server and we expose them to Ollama

@@ -32,15 +32,21 @@ bun run dev
 
 ### Prerequisites for AI Agent
 
-To use the AI agent feature, you need:
+The AI agent connects to an Ollama API server. By default, it uses `https://ollama.crisper.skills.eliaschen.dev`.
 
-1. **Ollama** installed and running:
+To use a different Ollama server:
+
+1. Set the `OLLAMA_HOST` environment variable:
    ```bash
-   ollama serve
+   export OLLAMA_HOST=http://localhost:11434
    ```
 
-2. **A compatible model** (e.g., llama3.2):
+2. Ensure a compatible model is available on the Ollama server (e.g., llama3.2):
    ```bash
+   # For the default remote server
+   OLLAMA_HOST=https://ollama.crisper.skills.eliaschen.dev ollama pull llama3.2
+   
+   # For local server
    ollama pull llama3.2
    ```
 
