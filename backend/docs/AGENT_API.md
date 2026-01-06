@@ -165,8 +165,12 @@ This is the **ollama-mcp-bridge** pattern: MCP tools are bridged into Ollama's f
    - Check available models with: `GET /api/agent/models`
    - If no models are available, you may need to pull one (e.g., llama3.2)
    ```bash
-   # Using ollama CLI against the remote server
+   # Using ollama CLI against the remote server (one-time command)
    OLLAMA_HOST=https://ollama.crisper.skills.eliaschen.dev ollama pull llama3.2
+   
+   # OR export the variable first for persistent use
+   export OLLAMA_HOST=https://ollama.crisper.skills.eliaschen.dev
+   ollama pull llama3.2
    ```
 
 3. **The MCP server** must be running at port 3001 (automatically started with the backend)

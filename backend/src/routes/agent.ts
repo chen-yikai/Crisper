@@ -261,7 +261,7 @@ export const agentRoute = routeHandler("agent")
       },
       detail: {
         summary: "取得可用的 Ollama 模型列表",
-        description: "列出本地 Ollama 伺服器上所有可用的模型。",
+        description: "列出 Ollama 伺服器上所有可用的模型。伺服器位置可透過 OLLAMA_HOST 環境變數設定。",
       },
     },
   )
