@@ -4,8 +4,8 @@ import { routes } from "@/api";
 import { mcpPlugin } from "@/mcp";
 
 const app = new Elysia()
+  .use(staticPlugin({ assets: "./data", prefix: "/s3" }))
   .get("/s3/avatars/default.png", () => Bun.file("./assets/defaultAvatar.png"))
-  .use(staticPlugin({ assets: "data", prefix: "/s3" }))
   .onError(({ code, set, error }) => {
     switch (code) {
       case "VALIDATION":
