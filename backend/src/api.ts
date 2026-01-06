@@ -3,6 +3,7 @@ import { swagger } from "@elysiajs/swagger";
 import { usersRoute } from "@/routes/users";
 import { postsRoute } from "@/routes/posts";
 import { topicsRoute } from "@/routes/topics";
+import { agentRoute } from "@/routes/agent";
 
 export const routes = new Elysia({ prefix: "/api" })
   .use(
@@ -37,4 +38,5 @@ export const routes = new Elysia({ prefix: "/api" })
   )
   .use(usersRoute)
   .use(postsRoute)
-  .use(topicsRoute);
+  .use(topicsRoute)
+  .use(agentRoute);
