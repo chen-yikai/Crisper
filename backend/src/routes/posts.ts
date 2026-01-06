@@ -156,9 +156,11 @@ export const postsRoute = routeHandler("posts")
   .post(
     "/",
     async ({ db, body, status, user }) => {
-      const imagesValid = await validateImagesExist(body.images ?? null);
-      if (!imagesValid) {
-        return status(422, { message: "圖片不存在或路徑無效" });
+      if (body.images) {
+        const imagesValid = await validateImagesExist(body.images ?? null);
+        if (!imagesValid) {
+          return status(422, { message: "圖片不存在或路徑無效" });
+        }
       }
 
       if (body.topics) {

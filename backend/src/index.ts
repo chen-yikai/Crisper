@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { staticPlugin } from "@elysiajs/static";
 import { routes } from "@/api";
 import { mcpPlugin } from "@/mcp";
@@ -11,9 +11,18 @@ const app = new Elysia()
       case "VALIDATION":
       case "PARSE":
         set.status = 422;
-        return {
-          message: "資料格式錯誤",
-        };
+        try {
+          const summary = JSON.parse(error.message).summary;
+          return {
+            message: "資料格式錯誤",
+            info: summary,
+          };
+        } catch (error) {
+          return {
+            message: "資料格式錯誤",
+            info: "Bad Request",
+          };
+        }
       case "NOT_FOUND":
         set.status = 404;
         return null;
