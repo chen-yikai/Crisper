@@ -1,9 +1,14 @@
-import Elysia from "elysia";
+import Elysia, { t } from "elysia";
 import { jwtPlugin } from "./jwt";
 
 export const authHandler = (app: Elysia) =>
   app
     .use(jwtPlugin)
+    .guard({
+      detail: {
+        security: [{ Authorization: [] }],
+      },
+    })
     .derive(async ({ jwt, headers: { authorization }, status }) => {
       const token = authorization
         ? authorization.startsWith("Bearer ")

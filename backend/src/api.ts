@@ -24,14 +24,13 @@ export const routes = new Elysia({ prefix: "/api" })
         },
         components: {
           securitySchemes: {
-            BearerAuth: {
+            Authorization: {
               type: "http",
               scheme: "bearer",
               bearerFormat: "JWT",
             },
           },
         },
-        security: [{ BearerAuth: [] }],
       },
     }),
   )
