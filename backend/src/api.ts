@@ -10,7 +10,7 @@ export const routes = new Elysia({ prefix: "/api" })
       path: "/docs",
       // provider: "swagger-ui",
       scalarConfig: {
-        layout: "classic",
+        layout: "modern",
         defaultOpenAllTags: true,
       },
       documentation: {

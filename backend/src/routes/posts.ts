@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { posts, topics, postLikes } from "@/db/schema";
+import { postTable, topicTable, likeTable } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { routeHandler } from "@/lib/routeHandler";
 import { authHandler } from "@/lib/authHandler";
@@ -34,13 +34,13 @@ export const postsRoute = routeHandler("posts")
   .get(
     "/",
     async ({ db, query }) => {
-      const allPosts = await db.query.posts.findMany({
+      const allPosts = await db.query.postTable.findMany({
         limit: query.limit,
         extras: {
           likesCount: sql<number>`(
             SELECT COUNT(*)
-            FROM ${postLikes}
-            WHERE ${postLikes.postId} = ${posts.id}
+            FROM ${likeTable}
+            WHERE ${likeTable.postId} = ${postTable.id}
           )`.as("likesCount"),
         },
         where: (table, { like, sql }) =>
@@ -83,13 +83,13 @@ export const postsRoute = routeHandler("posts")
   .get(
     "/:id",
     async ({ db, params, status }) => {
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, params.id),
+      const post = await db.query.postTable.findFirst({
+        where: eq(postTable.id, params.id),
         extras: {
           likesCount: sql<number>`(
             SELECT COUNT(*)
-            FROM ${postLikes}
-            WHERE ${postLikes.postId} = ${posts.id}
+            FROM ${likeTable}
+            WHERE ${likeTable.postId} = ${postTable.id}
           )`.as("likesCount"),
         },
       });
@@ -164,29 +164,29 @@ export const postsRoute = routeHandler("posts")
       }
 
       if (body.topics) {
-        const existingTopic = await db.query.topics.findFirst({
-          where: eq(topics.name, body.topics),
+        const existingTopic = await db.query.topicTable.findFirst({
+          where: eq(topicTable.name, body.topics),
         });
         if (!existingTopic) {
-          await db.insert(topics).values({ name: body.topics });
+          await db.insert(topicTable).values({ name: body.topics });
         }
       }
 
       const [newPost] = await db
-        .insert(posts)
+        .insert(postTable)
         .values({
           ...body,
           creator: user.userId,
         })
         .returning();
 
-      const postWithLikes = await db.query.posts.findFirst({
-        where: eq(posts.id, newPost.id),
+      const postWithLikes = await db.query.postTable.findFirst({
+        where: eq(postTable.id, newPost.id),
         extras: {
           likesCount: sql<number>`(
             SELECT COUNT(*)
-            FROM ${postLikes}
-            WHERE ${postLikes.postId} = ${posts.id}
+            FROM ${likeTable}
+            WHERE ${likeTable.postId} = ${postTable.id}
           )`.as("likesCount"),
         },
       });
@@ -226,23 +226,23 @@ export const postsRoute = routeHandler("posts")
         return status(422, { message: "圖片不存在或路徑無效" });
       }
 
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, params.id),
+      const post = await db.query.postTable.findFirst({
+        where: eq(postTable.id, params.id),
       });
       if (!post) {
         return status(404, { message: "找不到此貼文" });
       }
 
       if (body.topics) {
-        const existingTopic = await db.query.topics.findFirst({
-          where: eq(topics.name, body.topics),
+        const existingTopic = await db.query.topicTable.findFirst({
+          where: eq(topicTable.name, body.topics),
         });
         if (!existingTopic) {
-          await db.insert(topics).values({ name: body.topics });
+          await db.insert(topicTable).values({ name: body.topics });
         }
       }
 
-      await db.update(posts).set(body).where(eq(posts.id, params.id));
+      await db.update(postTable).set(body).where(eq(postTable.id, params.id));
       return { message: "貼文更新成功" };
     },
     {
@@ -271,14 +271,14 @@ export const postsRoute = routeHandler("posts")
   .delete(
     "/:id",
     async ({ db, params, status }) => {
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, params.id),
+      const post = await db.query.postTable.findFirst({
+        where: eq(postTable.id, params.id),
       });
       if (!post) {
         return status(404, { message: "找不到此貼文" });
       }
 
-      await db.delete(posts).where(eq(posts.id, params.id));
+      await db.delete(postTable).where(eq(postTable.id, params.id));
       return { message: "貼文刪除成功" };
     },
     {
@@ -299,33 +299,33 @@ export const postsRoute = routeHandler("posts")
   .post(
     "/:id/like",
     async ({ db, params, body, status, user }) => {
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, params.id),
+      const post = await db.query.postTable.findFirst({
+        where: eq(postTable.id, params.id),
       });
       if (!post) {
         return status(404, { message: "找不到此貼文" });
       }
 
-      const existingLike = await db.query.postLikes.findFirst({
+      const existingLike = await db.query.likeTable.findFirst({
         where: and(
-          eq(postLikes.userId, user.userId),
-          eq(postLikes.postId, params.id),
+          eq(likeTable.userId, user.userId),
+          eq(likeTable.postId, params.id),
         ),
       });
 
       if (body.liked && !existingLike) {
-        await db.insert(postLikes).values({
+        await db.insert(likeTable).values({
           userId: user.userId,
           postId: params.id,
         });
         return { message: "按讚成功", liked: true };
       } else if (!body.liked && existingLike) {
         await db
-          .delete(postLikes)
+          .delete(likeTable)
           .where(
             and(
-              eq(postLikes.userId, user.userId),
-              eq(postLikes.postId, params.id),
+              eq(likeTable.userId, user.userId),
+              eq(likeTable.postId, params.id),
             ),
           );
         return { message: "取消按讚成功", liked: false };
@@ -355,17 +355,17 @@ export const postsRoute = routeHandler("posts")
   .get(
     "/:id/liked",
     async ({ db, params, status, user }) => {
-      const post = await db.query.posts.findFirst({
-        where: eq(posts.id, params.id),
+      const post = await db.query.postTable.findFirst({
+        where: eq(postTable.id, params.id),
       });
       if (!post) {
         return status(404, { message: "找不到此貼文" });
       }
 
-      const existingLike = await db.query.postLikes.findFirst({
+      const existingLike = await db.query.likeTable.findFirst({
         where: and(
-          eq(postLikes.userId, user.userId),
-          eq(postLikes.postId, params.id),
+          eq(likeTable.userId, user.userId),
+          eq(likeTable.postId, params.id),
         ),
       });
 

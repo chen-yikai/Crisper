@@ -8,6 +8,13 @@
       "when": 1767631305700,
       "tag": "0000_glorious_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1767808618145,
+      "tag": "0001_tearful_rattler",
+      "breakpoints": true
     }
   ]
 }

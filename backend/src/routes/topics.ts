@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { topics } from "@/db/schema";
+import { topicTable } from "@/db/schema";
 import { routeHandler } from "@/lib/routeHandler";
 
 const TopicSchema = t.Object({
@@ -10,7 +10,7 @@ const TopicSchema = t.Object({
 export const topicsRoute = routeHandler("topics").get(
   "/",
   async ({ db, query }) => {
-    const allTopics = await db.query.topics.findMany({
+    const allTopics = await db.query.topicTable.findMany({
       limit: query.limit,
       orderBy: (table, { asc, desc }) => {
         const order = query.order === "asc" ? asc : desc;

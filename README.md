@@ -1,15 +1,7 @@
-# crisper
+# Crisper
 
-To install dependencies:
+一款聰明、好用的脆
 
-```bash
-bun install
-```
+# 環境變數範例
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+位於前後端資料夾中的`.env.example`
