@@ -67,6 +67,7 @@ export const likeTable = t.sqliteTable(
 );
 
 export const replyTable = t.sqliteTable("post_replies", {
+  id: t.integer("id").primaryKey({ autoIncrement: true }),
   postId: t
     .integer("post_id")
     .notNull()
@@ -78,6 +79,10 @@ export const replyTable = t.sqliteTable("post_replies", {
   content: t.text().notNull(),
   createdAt: t
     .integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: t
+    .integer("updated_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
 });

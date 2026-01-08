@@ -3,6 +3,8 @@ import { swagger } from "@elysiajs/swagger";
 import { usersRoute } from "@/routes/users";
 import { postsRoute } from "@/routes/posts";
 import { topicsRoute } from "@/routes/topics";
+import { likesRoute } from "./routes/likes";
+import { replyRoute } from "./routes/reply";
 
 export const routes = new Elysia({ prefix: "/api" })
   .use(
@@ -10,7 +12,7 @@ export const routes = new Elysia({ prefix: "/api" })
       path: "/docs",
       // provider: "swagger-ui",
       scalarConfig: {
-        layout: "modern",
+        layout: "classic",
         defaultOpenAllTags: true,
       },
       documentation: {
@@ -36,4 +38,6 @@ export const routes = new Elysia({ prefix: "/api" })
   )
   .use(usersRoute)
   .use(postsRoute)
+  .use(replyRoute)
+  .use(likesRoute)
   .use(topicsRoute);

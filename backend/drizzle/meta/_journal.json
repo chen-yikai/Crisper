@@ -15,6 +15,20 @@
       "when": 1767808618145,
       "tag": "0001_tearful_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1767888924445,
+      "tag": "0002_dizzy_vin_gonzales",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1767889408244,
+      "tag": "0003_next_forgotten_one",
+      "breakpoints": true
     }
   ]
 }

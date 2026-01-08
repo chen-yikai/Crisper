@@ -1,7 +1,8 @@
 import { t } from "elysia";
-import { postTable, topicTable, likeTable } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { postTable, topicTable, likeTable, replyTable } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { routeHandler } from "@/lib/routeHandler";
+import { MessageSchema } from "@/lib/messageObject";
 import { authHandler } from "@/lib/authHandler";
 import { nanoid } from "nanoid";
 
@@ -15,6 +16,28 @@ const PostSchema = t.Object({
   likesCount: t.Number(),
   createdAt: t.Date(),
   updateAt: t.Date(),
+});
+
+const ReplySchema = t.Object({
+  id: t.Number(),
+  postId: t.Number(),
+  userId: t.Number(),
+  content: t.String(),
+  createdAt: t.Date(),
+  updatedAt: t.Date(),
+});
+
+const PostWithRepliesSchema = t.Object({
+  id: t.Number(),
+  creator: t.Number(),
+  title: t.String(),
+  content: t.String(),
+  topics: t.Union([t.String(), t.Null()]),
+  images: t.Union([t.Array(t.String()), t.Null()]),
+  likesCount: t.Number(),
+  createdAt: t.Date(),
+  updateAt: t.Date(),
+  replies: t.Array(ReplySchema),
 });
 
 const validateImagesExist = async (images?: string[] | null) => {
@@ -59,6 +82,20 @@ export const postsRoute = routeHandler("posts")
           }
         },
       });
+
+      if (query.includeReplies) {
+        const postsWithReplies = await Promise.all(
+          allPosts.map(async (post) => {
+            const replies = await db.query.replyTable.findMany({
+              where: eq(replyTable.postId, post.id),
+              orderBy: (table, { desc }) => [desc(table.createdAt)],
+            });
+            return { ...post, replies };
+          }),
+        );
+        return postsWithReplies;
+      }
+
       return allPosts;
     },
     {
@@ -69,20 +106,21 @@ export const postsRoute = routeHandler("posts")
           t.Union([t.Literal("title"), t.Literal("createdAt")]),
         ),
         order: t.Optional(t.Union([t.Literal("asc"), t.Literal("desc")])),
+        includeReplies: t.Optional(t.Boolean()),
       }),
       response: {
-        200: t.Array(PostSchema),
+        200: t.Union([t.Array(PostSchema), t.Array(PostWithRepliesSchema)]),
       },
       detail: {
         summary: "取得貼文列表",
         description:
-          "取得貼文列表，可選擇性地使用搜尋關鍵字、限制回傳數量和排序方式。預設按建立時間降序排列。",
+          "取得貼文列表，可選擇性地使用搜尋關鍵字、限制回傳數量和排序方式。預設按建立時間降序排列。可選擇性地包含留言列表。",
       },
     },
   )
   .get(
     "/:id",
-    async ({ db, params, status }) => {
+    async ({ db, params, query, status }) => {
       const post = await db.query.postTable.findFirst({
         where: eq(postTable.id, params.id),
         extras: {
@@ -96,19 +134,32 @@ export const postsRoute = routeHandler("posts")
       if (!post) {
         return status(404, { message: "找不到此貼文" });
       }
+
+      if (query.includeReplies) {
+        const replies = await db.query.replyTable.findMany({
+          where: eq(replyTable.postId, params.id),
+          orderBy: (table, { desc }) => [desc(table.createdAt)],
+        });
+        return { ...post, replies };
+      }
+
       return post;
     },
     {
       params: t.Object({
         id: t.Number(),
       }),
+      query: t.Object({
+        includeReplies: t.Optional(t.Boolean()),
+      }),
       response: {
-        200: PostSchema,
-        404: t.Object({ message: t.String() }),
+        200: t.Union([PostSchema, PostWithRepliesSchema]),
+        404: MessageSchema,
       },
       detail: {
         summary: "取得單一貼文",
-        description: "根據貼文 ID 取得單一貼文的詳細資訊。",
+        description:
+          "根據貼文 ID 取得單一貼文的詳細資訊。可選擇性地包含留言列表。",
       },
     },
   )
@@ -143,8 +194,8 @@ export const postsRoute = routeHandler("posts")
           message: t.String(),
           imageUrl: t.String(),
         }),
-        401: t.Object({ message: t.String() }),
-        422: t.Object({ message: t.String() }),
+        401: MessageSchema,
+        422: MessageSchema,
       },
       detail: {
         summary: "上傳貼文圖片",
@@ -208,8 +259,8 @@ export const postsRoute = routeHandler("posts")
           message: t.String(),
           post: PostSchema,
         }),
-        401: t.Object({ message: t.String() }),
-        422: t.Object({ message: t.String() }),
+        401: MessageSchema,
+        422: MessageSchema,
       },
       detail: {
         summary: "建立新貼文",
@@ -233,6 +284,10 @@ export const postsRoute = routeHandler("posts")
         return status(404, { message: "找不到此貼文" });
       }
 
+      if (post.creator !== user.userId) {
+        return status(403, { message: "無權限修改此貼文" });
+      }
+
       if (body.topics) {
         const existingTopic = await db.query.topicTable.findFirst({
           where: eq(topicTable.name, body.topics),
@@ -242,7 +297,10 @@ export const postsRoute = routeHandler("posts")
         }
       }
 
-      await db.update(postTable).set(body).where(eq(postTable.id, params.id));
+      await db
+        .update(postTable)
+        .set({ ...body, updateAt: new Date() })
+        .where(eq(postTable.id, params.id));
       return { message: "貼文更新成功" };
     },
     {
@@ -256,10 +314,11 @@ export const postsRoute = routeHandler("posts")
         images: t.Optional(t.Array(t.String())),
       }),
       response: {
-        200: t.Object({ message: t.String() }),
-        401: t.Object({ message: t.String() }),
-        404: t.Object({ message: t.String() }),
-        422: t.Object({ message: t.String() }),
+        200: MessageSchema,
+        401: MessageSchema,
+        403: MessageSchema,
+        404: MessageSchema,
+        422: MessageSchema,
       },
       detail: {
         summary: "更新貼文",
@@ -270,12 +329,16 @@ export const postsRoute = routeHandler("posts")
   )
   .delete(
     "/:id",
-    async ({ db, params, status }) => {
+    async ({ db, params, status, user }) => {
       const post = await db.query.postTable.findFirst({
         where: eq(postTable.id, params.id),
       });
       if (!post) {
         return status(404, { message: "找不到此貼文" });
+      }
+
+      if (post.creator !== user.userId) {
+        return status(403, { message: "無權限刪除此貼文" });
       }
 
       await db.delete(postTable).where(eq(postTable.id, params.id));
@@ -286,103 +349,14 @@ export const postsRoute = routeHandler("posts")
         id: t.Number(),
       }),
       response: {
-        200: t.Object({ message: t.String() }),
-        401: t.Object({ message: t.String() }),
-        404: t.Object({ message: t.String() }),
+        200: MessageSchema,
+        401: MessageSchema,
+        403: MessageSchema,
+        404: MessageSchema,
       },
       detail: {
         summary: "刪除貼文",
         description: "刪除指定的貼文。需要 Token 認證。",
-      },
-    },
-  )
-  .post(
-    "/:id/like",
-    async ({ db, params, body, status, user }) => {
-      const post = await db.query.postTable.findFirst({
-        where: eq(postTable.id, params.id),
-      });
-      if (!post) {
-        return status(404, { message: "找不到此貼文" });
-      }
-
-      const existingLike = await db.query.likeTable.findFirst({
-        where: and(
-          eq(likeTable.userId, user.userId),
-          eq(likeTable.postId, params.id),
-        ),
-      });
-
-      if (body.liked && !existingLike) {
-        await db.insert(likeTable).values({
-          userId: user.userId,
-          postId: params.id,
-        });
-        return { message: "按讚成功", liked: true };
-      } else if (!body.liked && existingLike) {
-        await db
-          .delete(likeTable)
-          .where(
-            and(
-              eq(likeTable.userId, user.userId),
-              eq(likeTable.postId, params.id),
-            ),
-          );
-        return { message: "取消按讚成功", liked: false };
-      }
-
-      return { message: "狀態無變更", liked: !!existingLike };
-    },
-    {
-      params: t.Object({
-        id: t.Number(),
-      }),
-      body: t.Object({
-        liked: t.Boolean(),
-      }),
-      response: {
-        200: t.Object({ message: t.String(), liked: t.Boolean() }),
-        401: t.Object({ message: t.String() }),
-        404: t.Object({ message: t.String() }),
-      },
-      detail: {
-        summary: "更新按讚狀態",
-        description:
-          "更新對指定貼文的按讚狀態。需要 Token 認證。傳送 { liked: true } 按讚，{ liked: false } 取消按讚。",
-      },
-    },
-  )
-  .get(
-    "/:id/liked",
-    async ({ db, params, status, user }) => {
-      const post = await db.query.postTable.findFirst({
-        where: eq(postTable.id, params.id),
-      });
-      if (!post) {
-        return status(404, { message: "找不到此貼文" });
-      }
-
-      const existingLike = await db.query.likeTable.findFirst({
-        where: and(
-          eq(likeTable.userId, user.userId),
-          eq(likeTable.postId, params.id),
-        ),
-      });
-
-      return { postId: post.id, liked: !!existingLike };
-    },
-    {
-      params: t.Object({
-        id: t.Number(),
-      }),
-      response: {
-        200: t.Object({ postId: t.Number(), liked: t.Boolean() }),
-        401: t.Object({ message: t.String() }),
-        404: t.Object({ message: t.String() }),
-      },
-      detail: {
-        summary: "檢查是否按讚",
-        description: "檢查當前使用者是否對指定貼文按讚。需要 token 認證。",
       },
     },
   );

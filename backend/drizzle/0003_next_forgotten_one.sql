@@ -1,0 +1,1 @@
+ALTER TABLE `post_replies` ADD `updated_at` integer NOT NULL;

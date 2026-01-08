@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { staticPlugin } from "@elysiajs/static";
 import { routes } from "@/api";
 import { mcpPlugin } from "./mcp";
+import { hideOpenAPI } from "./lib/hideOpenAPI";
 
 const app = new Elysia()
   .use(staticPlugin({ assets: "./data", prefix: "/s3" }))
@@ -32,13 +33,10 @@ const app = new Elysia()
     }
   })
   .use(routes)
+  .use(hideOpenAPI)
+  .use(mcpPlugin)
   .listen(3000);
-const mcpApp = new Elysia().use(mcpPlugin).listen(3001);
 
 console.log(
   `Crisper backend is running at ${app.server?.hostname}:${app.server?.port}`,
-);
-
-console.log(
-  `MCP server is running at ${mcpApp.server?.hostname}:${mcpApp.server?.port}/mcp`,
 );

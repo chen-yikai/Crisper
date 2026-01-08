@@ -3,6 +3,7 @@ import { userTable } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { routeHandler } from "@/lib/routeHandler";
 import { authHandler } from "@/lib/authHandler";
+import { MessageSchema } from "@/lib/messageObject";
 
 const passwordPattern = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{4,}$";
 
@@ -86,7 +87,7 @@ export const usersRoute = routeHandler("users")
       }),
       response: {
         200: UserSchema,
-        404: t.Object({ message: t.String() }),
+        404: MessageSchema,
       },
       detail: {
         summary: "取得單一使用者",
@@ -131,7 +132,7 @@ export const usersRoute = routeHandler("users")
             email: t.String(),
           }),
         }),
-        409: t.Object({ message: t.String() }),
+        409: MessageSchema,
       },
       detail: {
         summary: "使用者註冊",
@@ -237,13 +238,31 @@ export const usersRoute = routeHandler("users")
           message: t.String(),
           avatarUrl: t.String(),
         }),
-        401: t.Object({ message: t.String() }),
-        422: t.Object({ message: t.String() }),
+        401: MessageSchema,
+        422: MessageSchema,
       },
       detail: {
         summary: "更新使用者頭像",
         description:
           "上傳並更新已驗證使用者的頭像圖片。需要在 Authorization 標頭中提供 Token。僅接受圖片檔案。",
+      },
+    }
+  )
+  .delete(
+    "/",
+    async ({ db, user }) => {
+      await db.delete(userTable).where(eq(userTable.id, user.userId));
+      return { message: "帳號刪除成功" };
+    },
+    {
+      response: {
+        200: MessageSchema,
+        401: MessageSchema,
+      },
+      detail: {
+        summary: "刪除使用者帳號",
+        description:
+          "刪除已驗證的使用者帳號。需要在 Authorization 標頭中提供 Token。此操作無法復原。",
       },
     }
   );
