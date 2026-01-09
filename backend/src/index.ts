@@ -3,8 +3,10 @@ import { staticPlugin } from "@elysiajs/static";
 import { routes } from "@/api";
 import { mcpPlugin } from "./mcp";
 import { hideOpenAPI } from "./lib/hideOpenAPI";
+import cors from "@elysiajs/cors";
 
 const app = new Elysia()
+  .use(cors())
   .use(staticPlugin({ assets: "./data", prefix: "/s3" }))
   .get("/s3/avatars/default.png", () => Bun.file("./assets/defaultAvatar.png"))
   .onError(({ code, set, error }) => {
