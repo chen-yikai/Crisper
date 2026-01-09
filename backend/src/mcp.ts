@@ -115,7 +115,7 @@ export const mcpPlugin = mcp({
       {
         description: "建立新貼文",
         inputSchema: z.object({
-          creator: z.number().describe("建立者的使用者 ID"),
+          creator: z.number().describe("建立者的使用者ID"),
           title: z.string().describe("貼文標題"),
           content: z.string().describe("貼文內容"),
           topics: z.string().optional().describe("貼文主題"),
@@ -133,7 +133,7 @@ export const mcpPlugin = mcp({
           }
           const [newPost] = await db
             .insert(postTable)
-            .values({ creator, title, content, topics })
+            .values({ creator, title, content })
             .returning();
           return {
             content: [

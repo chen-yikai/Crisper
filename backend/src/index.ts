@@ -29,7 +29,7 @@ const app = new Elysia()
       case "INTERNAL_SERVER_ERROR":
       case "UNKNOWN":
         set.status = 500;
-        return { message: "後端服務發生錯誤" };
+        return { message: "後端服務發生錯誤", info: error.message };
     }
   })
   .use(routes)
