@@ -9,9 +9,6 @@ RUN bun install
 COPY . .
 
 ENV NODE_ENV=production
-ENV SQLITE_PATH=/app/data/sqlite.db
-
-RUN mkdir -p /app/data
 
 EXPOSE 3000 
 
