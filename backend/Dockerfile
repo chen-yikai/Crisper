@@ -13,6 +13,10 @@ ENV SQLITE_PATH=/app/data/sqlite.db
 
 RUN mkdir -p /app/data
 
-EXPOSE 3000 3001
+EXPOSE 3000 
 
-CMD ["sh", "-c", "bun run db:push && bun run src/index.ts"]
+RUN bun run db:generate && \
+    bun run db:push && \
+    bun run db:seed
+
+CMD ["bun", "run", "src/index.ts"]
