@@ -39,6 +39,8 @@ const app = new Elysia()
   .use(mcpPlugin)
   .listen(3000);
 
+export type App = typeof app;
+
 console.log(
   `Crisper backend is running at ${app.server?.hostname}:${app.server?.port}`,
 );

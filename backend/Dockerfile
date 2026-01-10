@@ -9,6 +9,7 @@ RUN bun install
 COPY . .
 
 ENV NODE_ENV=production
+ENV SQLITE_PATH=sqlite.db
 
 EXPOSE 3000 
 

@@ -5,6 +5,7 @@ import { routeHandler } from "@/lib/routeHandler";
 import { MessageSchema } from "@/lib/messageObject";
 import { authHandler } from "@/lib/authHandler";
 import { nanoid } from "nanoid";
+import { ReplySchema } from "./reply";
 
 const PostSchema = t.Object({
   id: t.Number(),
@@ -16,15 +17,6 @@ const PostSchema = t.Object({
   likesCount: t.Number(),
   createdAt: t.Date(),
   updateAt: t.Date(),
-});
-
-const ReplySchema = t.Object({
-  id: t.Number(),
-  postId: t.Number(),
-  userId: t.Number(),
-  content: t.String(),
-  createdAt: t.Date(),
-  updatedAt: t.Date(),
 });
 
 const PostWithRepliesSchema = t.Object({
@@ -207,6 +199,9 @@ export const postsRoute = routeHandler("posts")
   .post(
     "/",
     async ({ db, body, status, user }) => {
+      if (body.images !== undefined && !Array.isArray(body.images)) {
+        return status(422, { message: "images 必須是陣列" });
+      }
       if (body.images) {
         const imagesValid = await validateImagesExist(body.images ?? null);
         if (!imagesValid) {
@@ -272,9 +267,11 @@ export const postsRoute = routeHandler("posts")
   .put(
     "/:id",
     async ({ db, params, body, status, user }) => {
-      const imagesValid = await validateImagesExist(body.images ?? null);
-      if (!imagesValid) {
-        return status(422, { message: "圖片不存在或路徑無效" });
+      if (body.images) {
+        const imagesValid = await validateImagesExist(body.images);
+        if (!imagesValid) {
+          return status(422, { message: "圖片不存在或路徑無效" });
+        }
       }
 
       const post = await db.query.postTable.findFirst({

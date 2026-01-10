@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "crisper-db-tools": {
+      "type": "streamable_http",
+      "url": "http://backend:3000/mcp"
+    }
+  }
+}

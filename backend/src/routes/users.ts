@@ -204,6 +204,59 @@ export const usersRoute = routeHandler("users")
   )
   .use(authHandler)
   .patch(
+    "/",
+    async ({ db, body, status, user }) => {
+      const existingUser = await db.query.userTable.findFirst({
+        where: eq(userTable.id, user.userId),
+      });
+      if (!existingUser) {
+        return status(404, { message: "找不到此使用者" });
+      }
+
+      const [updatedUser] = await db
+        .update(userTable)
+        .set({
+          ...(body.name && { name: body.name }),
+          ...(body.description !== undefined && { description: body.description }),
+          updateAt: new Date(),
+        })
+        .where(eq(userTable.id, user.userId))
+        .returning({
+          id: userTable.id,
+          name: userTable.name,
+          email: userTable.email,
+          description: userTable.description,
+          avatar: userTable.avatar,
+          createdAt: userTable.createdAt,
+          updateAt: userTable.updateAt,
+        });
+
+      return {
+        message: "使用者資料更新成功",
+        user: updatedUser,
+      };
+    },
+    {
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1 })),
+        description: t.Optional(t.Union([t.String(), t.Null()])),
+      }),
+      response: {
+        200: t.Object({
+          message: t.String(),
+          user: UserSchema,
+        }),
+        401: MessageSchema,
+        404: MessageSchema,
+      },
+      detail: {
+        summary: "更新使用者資料",
+        description:
+          "更新已驗證使用者的個人資料（名稱、描述）。需要在 Authorization 標頭中提供 Token。所有欄位皆為選填。",
+      },
+    }
+  )
+  .patch(
     "/avatar",
     async ({ db, body, status, user }) => {
       const extNameSplit = body.image.name.split(".");

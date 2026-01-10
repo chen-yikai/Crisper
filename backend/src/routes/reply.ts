@@ -5,10 +5,10 @@ import { routeHandler } from "@/lib/routeHandler";
 import { t } from "elysia";
 import { eq } from "drizzle-orm";
 
-const ReplySchema = t.Object({
-  id: t.Integer(),
-  postId: t.Integer(),
-  userId: t.Integer(),
+export const ReplySchema = t.Object({
+  id: t.Number(),
+  postId: t.Number(),
+  userId: t.Number(),
   content: t.String(),
   createdAt: t.Date(),
   updatedAt: t.Date(),

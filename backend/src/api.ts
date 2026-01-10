@@ -5,6 +5,9 @@ import { postsRoute } from "@/routes/posts";
 import { topicsRoute } from "@/routes/topics";
 import { likesRoute } from "./routes/likes";
 import { replyRoute } from "./routes/reply";
+import { crispyRoute } from "./routes/agent";
+
+export type Route = typeof routes;
 
 export const routes = new Elysia({ prefix: "/api" })
   .use(
@@ -40,4 +43,5 @@ export const routes = new Elysia({ prefix: "/api" })
   .use(postsRoute)
   .use(replyRoute)
   .use(likesRoute)
-  .use(topicsRoute);
+  .use(topicsRoute)
+  .use(crispyRoute);

@@ -1,8 +1,28 @@
 import { mcp } from "elysia-mcp";
-import { db } from "@/db";
-import { postTable, replyTable, topicTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { treaty } from "@elysiajs/eden";
 import { z } from "zod";
+import type { Route } from "./api.js";
+import { jwtPlugin } from "@/lib/jwt";
+
+const { api } = treaty<Route>("http://localhost:3000");
+
+// Get the JWT signer from the existing plugin
+const { jwt } = jwtPlugin.decorator;
+const generateToken = (userId: number) => jwt.sign({ userId });
+
+const textContent = (data: unknown) => ({
+  content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+});
+
+const errorContent = (error: unknown) => ({
+  content: [
+    {
+      type: "text" as const,
+      text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+    },
+  ],
+  isError: true,
+});
 
 export const mcpPlugin = mcp({
   serverInfo: {
@@ -21,27 +41,13 @@ export const mcpPlugin = mcp({
       },
       async () => {
         try {
-          const posts = await db.query.postTable.findMany({
-            limit: 50,
+          const { data, error } = await api.posts.get({
+            query: { limit: 50 },
           });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(posts, null, 2),
-              },
-            ],
-          };
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
         }
       },
     );
@@ -53,30 +59,13 @@ export const mcpPlugin = mcp({
       },
       async () => {
         try {
-          const users = await db.query.userTable.findMany({
-            columns: {
-              password: false,
-            },
-            limit: 50,
+          const { data, error } = await api.users.get({
+            query: { limit: 50 },
           });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(users, null, 2),
-              },
-            ],
-          };
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
         }
       },
     );
@@ -88,131 +77,79 @@ export const mcpPlugin = mcp({
       },
       async () => {
         try {
-          const topics = await db.query.topicTable.findMany();
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(topics, null, 2),
-              },
-            ],
-          };
+          const { data, error } = await api.topics.get();
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-    s.registerTool(
-      "create_post",
-      {
-        description: "建立新貼文",
-        inputSchema: z.object({
-          creator: z.number().describe("建立者的使用者ID"),
-          title: z.string().describe("貼文標題"),
-          content: z.string().describe("貼文內容"),
-          topics: z.string().optional().describe("貼文主題"),
-        }),
-      },
-      async ({ creator, title, content, topics }) => {
-        try {
-          if (topics) {
-            const existingTopic = await db.query.topicTable.findFirst({
-              where: eq(topicTable.name, topics),
-            });
-            if (!existingTopic) {
-              await db.insert(topicTable).values({ name: topics });
-            }
-          }
-          const [newPost] = await db
-            .insert(postTable)
-            .values({ creator, title, content })
-            .returning();
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { message: "貼文建立成功", post: newPost },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
         }
       },
     );
 
     s.registerTool(
-      "update_post",
+      "get_post",
       {
-        description: "更新貼文",
+        description: "取得單一貼文",
         inputSchema: z.object({
           id: z.number().describe("貼文 ID"),
-          title: z.string().optional().describe("新標題"),
-          content: z.string().optional().describe("新內容"),
-          topics: z.string().optional().describe("新主題"),
+          includeReplies: z.boolean().optional().describe("是否包含留言"),
         }),
       },
-      async ({ id, title, content, topics }) => {
+      async ({ id, includeReplies }) => {
         try {
-          const post = await db.query.postTable.findFirst({
-            where: eq(postTable.id, id),
+          const { data, error } = await api.posts({ id }).get({
+            query: { includeReplies },
           });
-          if (!post) {
-            return {
-              content: [{ type: "text", text: "Error: 找不到此貼文" }],
-              isError: true,
-            };
-          }
-          if (topics) {
-            const existingTopic = await db.query.topicTable.findFirst({
-              where: eq(topicTable.name, topics),
-            });
-            if (!existingTopic) {
-              await db.insert(topicTable).values({ name: topics });
-            }
-          }
-          await db
-            .update(postTable)
-            .set({ title, content, topics, updateAt: new Date() })
-            .where(eq(postTable.id, id));
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ message: "貼文更新成功" }, null, 2),
-              },
-            ],
-          };
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
+        }
+      },
+    );
+
+    s.registerTool(
+      "get_replies_by_post",
+      {
+        description: "取得指定貼文的所有留言",
+        inputSchema: z.object({
+          postId: z.coerce.number().describe("貼文 ID"),
+        }),
+      },
+      async ({ postId }) => {
+        try {
+          const { data, error } = await api.post.reply({ postId }).get();
+          if (error) return errorContent(error);
+          return textContent(data);
+        } catch (error) {
+          return errorContent(error);
+        }
+      },
+    );
+
+    s.registerTool(
+      "create_post",
+      {
+        description: "建立新貼文（需要提供使用者 ID）",
+        inputSchema: z.object({
+          userId: z.number().describe("使用者 ID"),
+          title: z.string().describe("貼文標題"),
+          content: z.string().describe("貼文內容"),
+          topics: z.string().describe("貼文主題"),
+          images: z.array(z.string()).optional().describe("圖片 URL 陣列"),
+        }),
+      },
+      async ({ userId, title, content, topics, images }) => {
+        try {
+          const token = await generateToken(userId);
+          const { data, error } = await api.posts.post(
+            { title, content, topics, images: images ?? [] },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (error) return errorContent(error);
+          return textContent(data);
+        } catch (error) {
+          return errorContent(error);
         }
       },
     );
@@ -220,216 +157,48 @@ export const mcpPlugin = mcp({
     s.registerTool(
       "delete_post",
       {
-        description: "刪除貼文",
+        description: "刪除指定貼文（需要提供使用者 ID，只能刪除自己的貼文）",
         inputSchema: z.object({
+          userId: z.number().describe("使用者 ID"),
           id: z.number().describe("貼文 ID"),
         }),
       },
-      async ({ id }) => {
+      async ({ userId, id }) => {
         try {
-          const post = await db.query.postTable.findFirst({
-            where: eq(postTable.id, id),
-          });
-          if (!post) {
-            return {
-              content: [{ type: "text", text: "Error: 找不到此貼文" }],
-              isError: true,
-            };
-          }
-          await db.delete(postTable).where(eq(postTable.id, id));
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ message: "貼文刪除成功" }, null, 2),
-              },
-            ],
-          };
+          const token = await generateToken(userId);
+          const { data, error } = await api.posts({ id }).delete(
+            {},
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Reply CRUD tools
-    s.registerTool(
-      "get_replies_by_post",
-      {
-        description: "取得指定貼文的所有留言",
-        inputSchema: z.object({
-          postId: z.number().describe("貼文 ID"),
-        }),
-      },
-      async ({ postId }) => {
-        try {
-          const replies = await db.query.replyTable.findMany({
-            where: eq(replyTable.postId, postId),
-          });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(replies, null, 2),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
         }
       },
     );
 
     s.registerTool(
-      "create_reply",
+      "update_user",
       {
-        description: "建立新留言",
+        description: "更新使用者資料（名稱、描述）",
         inputSchema: z.object({
-          postId: z.number().describe("貼文 ID"),
           userId: z.number().describe("使用者 ID"),
-          content: z.string().describe("留言內容"),
+          name: z.string().optional().describe("新的使用者名稱"),
+          description: z.string().nullable().optional().describe("新的使用者描述"),
         }),
       },
-      async ({ postId, userId, content }) => {
+      async ({ userId, name, description }) => {
         try {
-          const post = await db.query.postTable.findFirst({
-            where: eq(postTable.id, postId),
-          });
-          if (!post) {
-            return {
-              content: [{ type: "text", text: "Error: 找不到此貼文" }],
-              isError: true,
-            };
-          }
-          const [newReply] = await db
-            .insert(replyTable)
-            .values({ postId, userId, content })
-            .returning();
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { message: "留言建立成功", reply: newReply },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
+          const token = await generateToken(userId);
+          const { data, error } = await api.users.patch(
+            { name, description },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (error) return errorContent(error);
+          return textContent(data);
         } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    s.registerTool(
-      "update_reply",
-      {
-        description: "更新留言",
-        inputSchema: z.object({
-          id: z.number().describe("留言 ID"),
-          content: z.string().describe("新留言內容"),
-        }),
-      },
-      async ({ id, content }) => {
-        try {
-          const reply = await db.query.replyTable.findFirst({
-            where: eq(replyTable.id, id),
-          });
-          if (!reply) {
-            return {
-              content: [{ type: "text", text: "Error: 找不到此留言" }],
-              isError: true,
-            };
-          }
-          await db
-            .update(replyTable)
-            .set({ content, updatedAt: new Date() })
-            .where(eq(replyTable.id, id));
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ message: "留言更新成功" }, null, 2),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    s.registerTool(
-      "delete_reply",
-      {
-        description: "刪除留言",
-        inputSchema: z.object({
-          id: z.number().describe("留言 ID"),
-        }),
-      },
-      async ({ id }) => {
-        try {
-          const reply = await db.query.replyTable.findFirst({
-            where: eq(replyTable.id, id),
-          });
-          if (!reply) {
-            return {
-              content: [{ type: "text", text: "Error: 找不到此留言" }],
-              isError: true,
-            };
-          }
-          await db.delete(replyTable).where(eq(replyTable.id, id));
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ message: "留言刪除成功" }, null, 2),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorContent(error);
         }
       },
     );
