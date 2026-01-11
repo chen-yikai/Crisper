@@ -3,7 +3,6 @@
   "description": "一款聰明、好用的脆",
   "private": true,
   "workspaces": [
-    "frontend",
     "backend"
   ],
   "scripts": {
