@@ -1,21 +1,14 @@
-FROM oven/bun:latest AS builder
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y curl unzip && \
+    curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
 WORKDIR /app
 
 COPY ./backend ./backend
 
-ENV SQLITE_PATH=sqlite.db
-ENV NODE_ENV=production
-
-RUN cd backend && ./build.sh
-
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY --from=builder /app/backend ./backend
-
-RUN pip install ollama-mcp-bridge
+RUN ./backend/build.sh && pip install ollama-mcp-bridge
 
 COPY ./mcp-config.json ./
 
