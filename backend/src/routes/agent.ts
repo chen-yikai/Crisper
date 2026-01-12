@@ -34,7 +34,7 @@ export const crispyRoute = routeHandler("agent")
         stream: false,
         messages: [systemMessage, ...body.messages],
         options: {
-          temperature: 0.1,
+          temperature: 0.7,
           num_ctx: 4096,
         },
       };
