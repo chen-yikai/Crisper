@@ -23,37 +23,37 @@ const seedImageUrls = [
 
 const mockUsers = [
   {
-    name: "陳柏翰",
+    name: "Bo-Han Chen",
     email: "bohan.chen@example.com",
     password: "pass1234",
     description: "熱愛登山與攝影，目標是踏遍台灣百岳",
   },
   {
-    name: "林宜珊",
+    name: "Yi-Shan Lin",
     email: "yishan.lin@example.com",
     password: "pass1234",
     description: "海洋生態愛好者，潛水教練，喜歡探索水下世界",
   },
   {
-    name: "張家豪",
+    name: "Jia-Hao Zhang",
     email: "jiahao.zhang@example.com",
     password: "pass1234",
     description: "戶外運動狂熱者，越野跑步、登山、攀岩樣樣來",
   },
   {
-    name: "王雅琪",
+    name: "Ya-Qi Wang",
     email: "yaqi.wang@example.com",
     password: "pass1234",
     description: "賞鳥達人，生態攝影師，用鏡頭記錄台灣之美",
   },
   {
-    name: "劉承恩",
+    name: "Cheng-En Liu",
     email: "chengen.liu@example.com",
     password: "pass1234",
     description: "露營愛好者，喜歡在星空下與朋友分享故事",
   },
   {
-    name: "黃詩涵",
+    name: "Shi-Han Huang",
     email: "shihan.huang@example.com",
     password: "pass1234",
     description: "旅遊部落客，專門分享台灣秘境與自然美景",
