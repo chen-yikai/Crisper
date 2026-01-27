@@ -29,7 +29,7 @@ export const usersRoute = routeHandler("users")
         where: (table, { like, sql }) =>
           like(
             sql`lower(${table.name})`,
-            `%${(query.search ?? "").toLowerCase()}%`
+            `%${(query.search ?? "").toLowerCase()}%`,
           ),
         orderBy: (table, { asc, desc }) => {
           const order = query.order === "asc" ? asc : desc;
@@ -55,7 +55,7 @@ export const usersRoute = routeHandler("users")
             t.Literal("name"),
             t.Literal("email"),
             t.Literal("createdAt"),
-          ])
+          ]),
         ),
         order: t.Optional(t.Union([t.Literal("asc"), t.Literal("desc")])),
       }),
@@ -65,7 +65,7 @@ export const usersRoute = routeHandler("users")
         description:
           "取得使用者列表，可選擇性地使用搜尋關鍵字、限制回傳數量和排序方式。密碼欄位不會包含在結果中。預設按建立時間降序排列。",
       },
-    }
+    },
   )
   .get(
     "/:id",
@@ -94,7 +94,7 @@ export const usersRoute = routeHandler("users")
         description:
           "根據使用者 ID 取得單一使用者的詳細資訊。密碼欄位不會包含在結果中。",
       },
-    }
+    },
   )
   .post(
     "/signup",
@@ -139,7 +139,7 @@ export const usersRoute = routeHandler("users")
         description:
           "註冊新的使用者帳號。電子郵件必須是唯一的。密碼必須包含至少一個字母和一個數字，最少長度為 4 個字元。",
       },
-    }
+    },
   )
   .post(
     "/signin",
@@ -147,7 +147,7 @@ export const usersRoute = routeHandler("users")
       const user = await db.query.userTable.findFirst({
         where: and(
           eq(userTable.email, body.email),
-          eq(userTable.password, body.password)
+          eq(userTable.password, body.password),
         ),
       });
       if (!user) {
@@ -200,7 +200,7 @@ export const usersRoute = routeHandler("users")
         description:
           "使用電子郵件和密碼進行使用者驗證。驗證成功後會回傳 Token。",
       },
-    }
+    },
   )
   .use(authHandler)
   .patch(
@@ -213,11 +213,26 @@ export const usersRoute = routeHandler("users")
         return status(404, { message: "找不到此使用者" });
       }
 
+      // Check if email is being changed and if it's already taken
+      if (body.email && body.email !== existingUser.email) {
+        const emailTaken = await db.query.userTable.findFirst({
+          where: eq(userTable.email, body.email),
+        });
+        if (emailTaken) {
+          return status(409, { message: "此電子郵件已被使用" });
+        }
+      }
+
       const [updatedUser] = await db
         .update(userTable)
         .set({
           ...(body.name && { name: body.name }),
-          ...(body.description !== undefined && { description: body.description }),
+          ...(body.email && { email: body.email }),
+          ...(body.password && { password: body.password }),
+          ...(body.description !== undefined && {
+            description: body.description,
+          }),
+          ...(body.avatar !== undefined && { avatar: body.avatar }),
           updateAt: new Date(),
         })
         .where(eq(userTable.id, user.userId))
@@ -239,7 +254,10 @@ export const usersRoute = routeHandler("users")
     {
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1 })),
+        email: t.Optional(t.String({ format: "email" })),
+        password: t.Optional(t.String({ pattern: passwordPattern })),
         description: t.Optional(t.Union([t.String(), t.Null()])),
+        avatar: t.Optional(t.Union([t.String(), t.Null()])),
       }),
       response: {
         200: t.Object({
@@ -248,13 +266,14 @@ export const usersRoute = routeHandler("users")
         }),
         401: MessageSchema,
         404: MessageSchema,
+        409: MessageSchema,
       },
       detail: {
         summary: "更新使用者資料",
         description:
-          "更新已驗證使用者的個人資料（名稱、描述）。需要在 Authorization 標頭中提供 Token。所有欄位皆為選填。",
+          "更新已驗證使用者的個人資料（名稱、電子郵件、密碼、描述、頭像）。需要在 Authorization 標頭中提供 Token。所有欄位皆為選填。電子郵件必須是唯一的。密碼必須包含至少一個字母和一個數字，最少長度為 4 個字元。",
       },
-    }
+    },
   )
   .patch(
     "/avatar",
@@ -299,7 +318,7 @@ export const usersRoute = routeHandler("users")
         description:
           "上傳並更新已驗證使用者的頭像圖片。需要在 Authorization 標頭中提供 Token。僅接受圖片檔案。",
       },
-    }
+    },
   )
   .delete(
     "/",
@@ -317,5 +336,5 @@ export const usersRoute = routeHandler("users")
         description:
           "刪除已驗證的使用者帳號。需要在 Authorization 標頭中提供 Token。此操作無法復原。",
       },
-    }
+    },
   );

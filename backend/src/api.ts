@@ -13,7 +13,7 @@ export const routes = new Elysia({ prefix: "/api" })
   .use(
     swagger({
       path: "/docs",
-      // provider: "swagger-ui",
+      provider: "swagger-ui",
       scalarConfig: {
         layout: "classic",
         defaultOpenAllTags: true,
@@ -22,7 +22,7 @@ export const routes = new Elysia({ prefix: "/api" })
         info: {
           title: "Crisper API Documentation",
           version: "1.0.0",
-          description: "一款聰明、好用的脆",
+          description: "一款聰明、好用的社群平台",
           license: {
             name: "MIT LICENSE",
           },

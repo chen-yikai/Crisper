@@ -1,6 +1,6 @@
 {
   "name": "Crisper",
-  "description": "一款聰明、好用的脆",
+  "description": "一款聰明、好用的社群平台",
   "private": true,
   "workspaces": [
     "backend"
