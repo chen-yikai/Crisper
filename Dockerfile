@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY ./backend ./backend
 
-RUN cd backend && bun install
+RUN cd backend && bun install && bun run db:push && bun run db:seed
 
 EXPOSE 3000
 
