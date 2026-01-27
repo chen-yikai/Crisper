@@ -37,7 +37,7 @@ const app = new Elysia()
   .use(routes)
   .use(hideOpenAPI)
   .use(mcpPlugin)
-  .listen(3000);
+  .listen(process.env.PORT ?? 3000);
 
 export type App = typeof app;
 
