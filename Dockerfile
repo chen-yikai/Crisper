@@ -1,22 +1,15 @@
-FROM python:3.11-slim
-
-RUN apt-get update && apt-get install -y curl unzip && \
-    curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+FROM oven/bun:1
 
 WORKDIR /app
 
 COPY ./backend ./backend
 
-RUN ./backend/build.sh && pip install ollama-mcp-bridge
-
-COPY ./mcp-config.json ./
+RUN cd backend && bun install
 
 EXPOSE 3000
 
 ENV SQLITE_PATH=sqlite.db
 ENV NODE_ENV=production
+ENV OLLAMA_URL=https://ollama.skills.eliaschen.dev
 
-COPY ./entrypoint.sh ./
-
-ENTRYPOINT ["./entrypoint.sh"]
+CMD ["bun", "run", "./backend/src/index.ts"]

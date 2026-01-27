@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { postTable, topicTable, likeTable, replyTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, like as sqlLike } from "drizzle-orm";
 import { routeHandler } from "@/lib/routeHandler";
 import { MessageSchema } from "@/lib/messageObject";
 import { authHandler } from "@/lib/authHandler";
@@ -45,12 +45,39 @@ const validateImagesExist = async (images?: string[] | null) => {
   return true;
 };
 
+const PaginationSchema = t.Object({
+  page: t.Number(),
+  limit: t.Number(),
+  total: t.Number(),
+  totalPages: t.Number(),
+});
+
 export const postsRoute = routeHandler("posts")
   .get(
     "/",
     async ({ db, query }) => {
+      const page = query.page ?? 1;
+      const limit = query.limit;
+      const offset = limit ? (page - 1) * limit : undefined;
+
+      // Build search condition
+      const searchCondition = query.search
+        ? sqlLike(
+            sql`lower(${postTable.title})`,
+            `%${query.search.toLowerCase()}%`,
+          )
+        : undefined;
+
+      // Get total count for pagination
+      const totalResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(postTable)
+        .where(searchCondition);
+      const total = totalResult[0]?.count ?? 0;
+
       const allPosts = await db.query.postTable.findMany({
-        limit: query.limit,
+        limit: limit,
+        offset: offset,
         extras: {
           likesCount: sql<number>`(
             SELECT COUNT(*)
@@ -58,11 +85,7 @@ export const postsRoute = routeHandler("posts")
             WHERE ${likeTable.postId} = ${postTable.id}
           )`.as("likesCount"),
         },
-        where: (table, { like, sql }) =>
-          like(
-            sql`lower(${table.title})`,
-            `%${(query.search ?? "").toLowerCase()}%`,
-          ),
+        where: searchCondition,
         orderBy: (table, { asc, desc }) => {
           const order = query.order === "asc" ? asc : desc;
           switch (query.sortBy) {
@@ -75,8 +98,11 @@ export const postsRoute = routeHandler("posts")
         },
       });
 
+      let data: typeof allPosts | (typeof allPosts[0] & { replies: any[] })[] =
+        allPosts;
+
       if (query.includeReplies) {
-        const postsWithReplies = await Promise.all(
+        data = await Promise.all(
           allPosts.map(async (post) => {
             const replies = await db.query.replyTable.findMany({
               where: eq(replyTable.postId, post.id),
@@ -85,15 +111,28 @@ export const postsRoute = routeHandler("posts")
             return { ...post, replies };
           }),
         );
-        return postsWithReplies;
       }
 
-      return allPosts;
+      // Return with pagination if limit is provided
+      if (limit) {
+        return {
+          data,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+      }
+
+      return { data };
     },
     {
       query: t.Object({
         search: t.Optional(t.String()),
-        limit: t.Optional(t.Number()),
+        page: t.Optional(t.Number({ minimum: 1 })),
+        limit: t.Optional(t.Number({ minimum: 1 })),
         sortBy: t.Optional(
           t.Union([t.Literal("title"), t.Literal("createdAt")]),
         ),
@@ -101,12 +140,15 @@ export const postsRoute = routeHandler("posts")
         includeReplies: t.Optional(t.Boolean()),
       }),
       response: {
-        200: t.Union([t.Array(PostSchema), t.Array(PostWithRepliesSchema)]),
+        200: t.Object({
+          data: t.Union([t.Array(PostSchema), t.Array(PostWithRepliesSchema)]),
+          pagination: t.Optional(PaginationSchema),
+        }),
       },
       detail: {
         summary: "取得貼文列表",
         description:
-          "取得貼文列表，可選擇性地使用搜尋關鍵字、限制回傳數量和排序方式。預設按建立時間降序排列。可選擇性地包含留言列表。",
+          "取得貼文列表，可選擇性地使用搜尋關鍵字、分頁、排序方式。預設按建立時間降序排列。提供 limit 時會回傳分頁資訊。",
       },
     },
   )

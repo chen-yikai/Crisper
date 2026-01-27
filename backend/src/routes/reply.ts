@@ -3,7 +3,7 @@ import { authHandler } from "@/lib/authHandler";
 import { MessageSchema } from "@/lib/messageObject";
 import { routeHandler } from "@/lib/routeHandler";
 import { t } from "elysia";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const ReplySchema = t.Object({
   id: t.Number(),
@@ -14,26 +14,68 @@ export const ReplySchema = t.Object({
   updatedAt: t.Date(),
 });
 
+const PaginationSchema = t.Object({
+  page: t.Number(),
+  limit: t.Number(),
+  total: t.Number(),
+  totalPages: t.Number(),
+});
+
 export const replyRoute = routeHandler("/post/reply", "Reply")
   .get(
     "/:postId",
-    async ({ db, params }) => {
+    async ({ db, params, query }) => {
+      const page = query.page ?? 1;
+      const limit = query.limit;
+      const offset = limit ? (page - 1) * limit : undefined;
+
+      // Get total count for pagination
+      const totalResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(replyTable)
+        .where(eq(replyTable.postId, params.postId));
+      const total = totalResult[0]?.count ?? 0;
+
       const replies = await db.query.replyTable.findMany({
         where: (table, { eq }) => eq(table.postId, params.postId),
+        limit: limit,
+        offset: offset,
         orderBy: (table, { desc }) => [desc(table.createdAt)],
       });
-      return replies;
+
+      // Return with pagination if limit is provided
+      if (limit) {
+        return {
+          data: replies,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+      }
+
+      return { data: replies };
     },
     {
       params: t.Object({
         postId: t.Integer(),
       }),
+      query: t.Object({
+        page: t.Optional(t.Number({ minimum: 1 })),
+        limit: t.Optional(t.Number({ minimum: 1 })),
+      }),
       response: {
-        200: t.Array(ReplySchema),
+        200: t.Object({
+          data: t.Array(ReplySchema),
+          pagination: t.Optional(PaginationSchema),
+        }),
       },
       detail: {
         summary: "取得貼文留言列表",
-        description: "根據貼文 ID 取得該貼文的所有留言，按建立時間降序排列。",
+        description:
+          "根據貼文 ID 取得該貼文的所有留言，按建立時間降序排列。提供 limit 時會回傳分頁資訊。",
       },
     },
   )

@@ -45,7 +45,7 @@ export const mcpPlugin = mcp({
             query: { limit: 50 },
           });
           if (error) return errorContent(error);
-          return textContent(data);
+          return textContent(data?.data);
         } catch (error) {
           return errorContent(error);
         }
@@ -63,7 +63,7 @@ export const mcpPlugin = mcp({
             query: { limit: 50 },
           });
           if (error) return errorContent(error);
-          return textContent(data);
+          return textContent(data?.data);
         } catch (error) {
           return errorContent(error);
         }
@@ -79,7 +79,7 @@ export const mcpPlugin = mcp({
         try {
           const { data, error } = await api.topics.get();
           if (error) return errorContent(error);
-          return textContent(data);
+          return textContent(data?.data);
         } catch (error) {
           return errorContent(error);
         }
@@ -120,7 +120,7 @@ export const mcpPlugin = mcp({
         try {
           const { data, error } = await api.post.reply({ postId }).get();
           if (error) return errorContent(error);
-          return textContent(data);
+          return textContent(data?.data);
         } catch (error) {
           return errorContent(error);
         }

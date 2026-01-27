@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "crisper-db-tools": {
-      "url": "http://localhost:3000/mcp"
-    }
-  }
-}

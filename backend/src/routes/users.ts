@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { userTable } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql, like as sqlLike } from "drizzle-orm";
 import { routeHandler } from "@/lib/routeHandler";
 import { authHandler } from "@/lib/authHandler";
 import { MessageSchema } from "@/lib/messageObject";
@@ -17,20 +17,43 @@ const UserSchema = t.Object({
   updateAt: t.Date(),
 });
 
+const PaginationSchema = t.Object({
+  page: t.Number(),
+  limit: t.Number(),
+  total: t.Number(),
+  totalPages: t.Number(),
+});
+
 export const usersRoute = routeHandler("users")
   .get(
     "/",
     async ({ db, query }) => {
+      const page = query.page ?? 1;
+      const limit = query.limit;
+      const offset = limit ? (page - 1) * limit : undefined;
+
+      // Build search condition
+      const searchCondition = query.search
+        ? sqlLike(
+            sql`lower(${userTable.name})`,
+            `%${query.search.toLowerCase()}%`,
+          )
+        : undefined;
+
+      // Get total count for pagination
+      const totalResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(userTable)
+        .where(searchCondition);
+      const total = totalResult[0]?.count ?? 0;
+
       const users = await db.query.userTable.findMany({
         columns: {
           password: false,
         },
-        limit: query.limit,
-        where: (table, { like, sql }) =>
-          like(
-            sql`lower(${table.name})`,
-            `%${(query.search ?? "").toLowerCase()}%`,
-          ),
+        limit: limit,
+        offset: offset,
+        where: searchCondition,
         orderBy: (table, { asc, desc }) => {
           const order = query.order === "asc" ? asc : desc;
           switch (query.sortBy) {
@@ -44,12 +67,27 @@ export const usersRoute = routeHandler("users")
           }
         },
       });
-      return users;
+
+      // Return with pagination if limit is provided
+      if (limit) {
+        return {
+          data: users,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+      }
+
+      return { data: users };
     },
     {
       query: t.Object({
         search: t.Optional(t.String()),
-        limit: t.Optional(t.Number()),
+        page: t.Optional(t.Number({ minimum: 1 })),
+        limit: t.Optional(t.Number({ minimum: 1 })),
         sortBy: t.Optional(
           t.Union([
             t.Literal("name"),
@@ -59,11 +97,14 @@ export const usersRoute = routeHandler("users")
         ),
         order: t.Optional(t.Union([t.Literal("asc"), t.Literal("desc")])),
       }),
-      response: t.Array(UserSchema),
+      response: t.Object({
+        data: t.Array(UserSchema),
+        pagination: t.Optional(PaginationSchema),
+      }),
       detail: {
         summary: "取得使用者列表",
         description:
-          "取得使用者列表，可選擇性地使用搜尋關鍵字、限制回傳數量和排序方式。密碼欄位不會包含在結果中。預設按建立時間降序排列。",
+          "取得使用者列表，可選擇性地使用搜尋關鍵字、分頁、排序方式。密碼欄位不會包含在結果中。提供 limit 時會回傳分頁資訊。",
       },
     },
   )
