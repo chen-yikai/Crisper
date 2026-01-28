@@ -12,11 +12,40 @@ export type Route = typeof routes;
 export const routes = new Elysia({ prefix: "/api" })
   .use(
     swagger({
-      path: "/docs",
+      path: "/swagger",
       provider: "swagger-ui",
       scalarConfig: {
         layout: "classic",
         defaultOpenAllTags: true,
+      },
+      documentation: {
+        info: {
+          title: "Crisper API Documentation",
+          version: "1.0.0",
+          description: "一款聰明、好用的社群平台",
+          license: {
+            name: "MIT LICENSE",
+          },
+        },
+        components: {
+          securitySchemes: {
+            Authorization: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+            },
+          },
+        },
+      },
+    }),
+  )
+  .use(
+    swagger({
+      path: "/docs",
+      provider: "scalar",
+      scalarConfig: {
+        // layout: "classic",
+        // defaultOpenAllTags: true,
       },
       documentation: {
         info: {

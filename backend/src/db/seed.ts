@@ -10,6 +10,9 @@ import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { mkdir } from "fs/promises";
 
+let postImages: (string | null)[] = [];
+let avatarImages: (string | null)[] = [];
+
 const seedImageUrls = [
   "https://picsum.photos/seed/mountain/800/600",
   "https://picsum.photos/seed/ocean/800/600",
@@ -21,42 +24,48 @@ const seedImageUrls = [
   "https://picsum.photos/seed/clouds/800/600",
 ];
 
-const mockUsers = [
+const getMockUsers = () => [
   {
     name: "Bo-Han Chen",
     email: "bohan.chen@example.com",
     password: "pass1234",
     description: "熱愛登山與攝影，目標是踏遍台灣百岳",
+    avatar: avatarImages[0],
   },
   {
     name: "Yi-Shan Lin",
     email: "yishan.lin@example.com",
     password: "pass1234",
     description: "海洋生態愛好者，潛水教練，喜歡探索水下世界",
+    avatar: avatarImages[1],
   },
   {
     name: "Jia-Hao Zhang",
     email: "jiahao.zhang@example.com",
     password: "pass1234",
     description: "戶外運動狂熱者，越野跑步、登山、攀岩樣樣來",
+    avatar: avatarImages[2],
   },
   {
     name: "Ya-Qi Wang",
     email: "yaqi.wang@example.com",
     password: "pass1234",
     description: "賞鳥達人，生態攝影師，用鏡頭記錄台灣之美",
+    avatar: avatarImages[3],
   },
   {
     name: "Cheng-En Liu",
     email: "chengen.liu@example.com",
     password: "pass1234",
     description: "露營愛好者，喜歡在星空下與朋友分享故事",
+    avatar: avatarImages[4],
   },
   {
     name: "Shi-Han Huang",
     email: "shihan.huang@example.com",
     password: "pass1234",
     description: "旅遊部落客，專門分享台灣秘境與自然美景",
+    avatar: avatarImages[5],
   },
 ];
 
@@ -69,8 +78,6 @@ const mockTopics = [
   { name: "日出日落" },
   { name: "野生動物" },
 ];
-
-let postImages: (string | null)[] = [];
 
 const getPostsData = () => [
   {
@@ -185,7 +192,7 @@ const mockLikes = [
   { userId: 6, postId: 8 },
 ];
 
-async function downloadImages() {
+async function downloadPostImage() {
   const postsDir = "./data/posts";
   await mkdir(postsDir, { recursive: true });
 
@@ -202,8 +209,27 @@ async function downloadImages() {
   return imagePaths;
 }
 
+async function downloadAvatarImage() {
+  const avatarDir = "./data/avatars";
+  const source = `https://picsum.photos/500`;
+  await mkdir(avatarDir, { recursive: true });
+
+  const imagePaths: string[] = [];
+
+  for (let i = 0; i <= 6; i++) {
+    const fileName = `${nanoid()}.jpg`;
+    const response = await fetch(source);
+    if (!response.ok) throw new Error(`Failed to download ${source}`);
+    await Bun.write(`${avatarDir}/${fileName}`, response);
+    imagePaths.push(`/s3/avatars/${fileName}`);
+  }
+
+  return imagePaths;
+}
+
 async function seed() {
-  postImages = await downloadImages();
+  postImages = await downloadPostImage();
+  avatarImages = await downloadAvatarImage();
 
   await db.delete(likeTable);
   await db.delete(replyTable);
@@ -214,7 +240,7 @@ async function seed() {
     sql`DELETE FROM sqlite_sequence WHERE name IN ('users', 'posts', 'post_replies')`,
   );
 
-  await db.insert(userTable).values(mockUsers);
+  await db.insert(userTable).values(getMockUsers());
   await db.insert(topicTable).values(mockTopics);
   await db.insert(postTable).values(getPostsData());
   await db.insert(replyTable).values(mockReplies);
