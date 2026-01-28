@@ -173,6 +173,7 @@ export const usersRoute = routeHandler("users")
             id: t.Number(),
             name: t.String(),
             email: t.String(),
+            description: t.String(),
           }),
         }),
         409: MessageSchema,
