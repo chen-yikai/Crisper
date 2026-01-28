@@ -155,6 +155,7 @@ export const usersRoute = routeHandler("users")
           id: newUser.id,
           name: newUser.name,
           email: newUser.email,
+          description: newUser.description,
         },
       };
     },
@@ -163,6 +164,7 @@ export const usersRoute = routeHandler("users")
         name: t.String(),
         email: t.String({ format: "email" }),
         password: t.String({ pattern: passwordPattern }),
+        description: t.String(),
       }),
       response: {
         200: t.Object({
