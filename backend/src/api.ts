@@ -12,7 +12,7 @@ export type Route = typeof routes;
 export const routes = new Elysia({ prefix: "/api" })
   .use(
     swagger({
-      path: "/swagger",
+      path: "/docs",
       provider: "swagger-ui",
       scalarConfig: {
         layout: "classic",
@@ -41,7 +41,7 @@ export const routes = new Elysia({ prefix: "/api" })
   )
   .use(
     swagger({
-      path: "/docs",
+      path: "/scalar",
       provider: "scalar",
       scalarConfig: {
         // layout: "classic",
