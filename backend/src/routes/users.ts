@@ -32,15 +32,12 @@ export const usersRoute = routeHandler("users")
       const limit = query.limit;
       const offset = limit ? (page - 1) * limit : undefined;
 
-      // Build search condition
       const searchCondition = query.search
         ? sqlLike(
             sql`lower(${userTable.name})`,
             `%${query.search.toLowerCase()}%`,
           )
         : undefined;
-
-      // Get total count for pagination
       const totalResult = await db
         .select({ count: sql<number>`count(*)` })
         .from(userTable)
@@ -68,7 +65,6 @@ export const usersRoute = routeHandler("users")
         },
       });
 
-      // Return with pagination if limit is provided
       if (limit) {
         return {
           data: users,
@@ -104,7 +100,7 @@ export const usersRoute = routeHandler("users")
       detail: {
         summary: "取得使用者列表",
         description:
-          "取得使用者列表，可選擇性地使用搜尋關鍵字、分頁、排序方式。密碼欄位不會包含在結果中。提供 limit 時會回傳分頁資訊。",
+          "取得使用者列表，可選擇性地使用搜尋關鍵字(search)、分頁(page)、排序方式(sortBy為排序欄位名稱(預設使用createdAt進行排序)，order為排序方式可填入asc或desc)。密碼欄位不會包含在結果中。提供 limit 時會回傳分頁資訊。",
       },
     },
   )
@@ -379,6 +375,30 @@ export const usersRoute = routeHandler("users")
         summary: "刪除使用者帳號",
         description:
           "刪除已驗證的使用者帳號。需要在 Authorization 標頭中提供 Token。此操作無法復原。",
+      },
+    },
+  )
+  .get(
+    "/verify",
+    async ({ db, user }) => {
+      const data = await db.query.userTable.findFirst({
+        where: eq(userTable.id, user.userId),
+      });
+      return {
+        message: "此為有效的JWT Token",
+        info: data,
+      };
+    },
+    {
+      response: {
+        200: t.Object({
+          message: t.String(),
+          info: UserSchema,
+        }),
+        401: MessageSchema,
+      },
+      detail: {
+        summary: "驗證並取得Token擁有者的所有資訊",
       },
     },
   );
